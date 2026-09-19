@@ -50,6 +50,7 @@ This is the single most misreadable term in the app, so the UI must state it in 
 
 | Field | Notes |
 | --- | --- |
+| Internal ID | Hidden identifier the app uses so goals and attendance point at a player unambiguously, even if two players share a display name. Never shown to or typed by the coach. (Decided during ELL-225.) |
 | Name | Display name used on all output |
 | Positions | A rating for every position, not just the ones she plays. See the ratings table below. |
 | Default batting slot | Optional. Where she usually hits. Lowest-priority influence on the order. |
@@ -88,6 +89,8 @@ Nothing about a session is saved after it is used. Practice plans already live i
 A goal is a small structured object, not a sentence. Shape:
 
 `{ player, verb, position? }`
+
+`player` here means the player's hidden internal ID, not her display name.
 
 Goals live in an ordered list. Order is priority. Higher wins conflicts.
 

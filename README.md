@@ -40,6 +40,6 @@ exact build with `npm run preview`.
 
 ## Status
 
-Repo scaffolding only (build stage 0). No types, no solver, no real UI yet —
-see the build order in `docs/PLANNING.md` and the Linear project
-**Practice Lineup Builder** for what comes next.
+Core types and the fake 15-player test roster exist (build stage 1). No
+solver, no real UI yet — see the build order in `docs/PLANNING.md` and the
+Linear project **Practice Lineup Builder** for what comes next.
