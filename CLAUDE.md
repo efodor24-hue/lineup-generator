@@ -68,7 +68,9 @@ Remote: `https://github.com/efodor24-hue/lineup-generator.git`
 - **One PR per issue.** The PR description states what changed, what was tested,
   and anything I should look at closely. Include the issue's magic word so it
   closes on merge.
-- **Do not merge your own PR.** Leave it for me.
+- **Do not merge any PR until I say so.** By default I merge them myself. If I
+  explicitly tell you to merge a specific PR, merge that one. An instruction
+  covers only the PR it names — it is never standing permission.
 - Never force push a shared branch. Never rewrite history on main.
 - Do not commit secrets, `.env` files, or `node_modules`. Set up `.gitignore`
   early.
