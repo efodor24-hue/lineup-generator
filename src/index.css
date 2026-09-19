@@ -1,0 +1,5 @@
+/* Deliberately near-empty. Real styling is milestone 6 (polish); see docs/PLANNING.md. */
+body {
+  font-family: system-ui, sans-serif;
+  margin: 2rem;
+}
