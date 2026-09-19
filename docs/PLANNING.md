@@ -38,7 +38,7 @@ This is the single most misreadable term in the app, so the UI must state it in 
 
 **Round length.** Roughly seven minutes in practice. That is the default the app suggests, always editable per session. Time is the primary input because coaches estimate time better than innings, and the app converts to a round count.
 
-**Playable.** The lineup feels game-like. That means a full infield plus at least two outfielders. It does not mean legal. Batting orders can repeat names, players can enter and leave freely, and nobody is checking a rulebook.
+**Playable.** The lineup feels game-like. That means a full infield plus at least two outfielders. Full infield includes the pitcher and catcher: playable is P, C, 1B, 2B, 3B, SS, and at least two outfield spots — eight players minimum on defense. (Clarified during ELL-226.) It does not mean legal. Batting orders can repeat names, players can enter and leave freely, and nobody is checking a rulebook.
 
 **Round structure.** Each round runs either to three outs or to a fixed number of batters. This is set once for the whole session, not per round. Fixed batters is the more common choice because it makes at-bats deterministic and lets the app actually guarantee even reps.
 
