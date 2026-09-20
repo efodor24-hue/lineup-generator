@@ -137,7 +137,12 @@ The solver is a greedy pass down the priority list. No search, no optimization, 
 
 A position can in principle be split mid-round: a catcher catches part of the round, then steps out to take her at-bat while someone else catches. This is real but undesirable.
 
-The solver may only consider it when a maximize-at-bats goal is active on that player. It never does it by default, and when it does, the result is flagged.
+The solver may only consider it in two situations, and never by default:
+
+1. A maximize-at-bats goal is active on that player.
+2. She is due to hit, and nobody else available for the defense can cover a required position she plays — for example the only catcher at practice, in a round her team is up. Hard rules 1 and 3 collide here, and this is how the collision is settled: she does both. If anyone rated Emergency only or better can cover the position, that player fills in instead (flagged as usual) and there is no split. (Decided during ELL-228.)
+
+When a split is used the result is flagged. The lineup shows her fielding and hitting in the same round, with an asterisk and a footnote. The tool does not name who covers her spot during her at-bat; the coach sorts that out on the field.
 
 ## Goals
 
@@ -257,7 +262,13 @@ This is the most important single check. If someone the coach meant to play is m
 > When any round is inspected,
 > Then no player appears in both the field and the batting group for that round.
 
-The only exception is the deliberate mid-round split, which requires an active maximize-at-bats goal on that player and must carry a flag.
+The only exception is the deliberate mid-round split, which must carry a flag. It requires either an active maximize-at-bats goal on that player, or a required position that nobody else available can cover (see "The mid-round split").
+
+> Given three-team mode and only one player present who can catch at any level,
+> When her team is the one hitting,
+> Then she appears in both the field at catcher and the batting group for that round,
+> And that assignment is flagged as a mid-round split with a footnote,
+> And nobody else is in two places.
 
 ### No blanks
 
