@@ -335,6 +335,81 @@ describe('goals are honored in priority order', () => {
   })
 })
 
+describe('a goal never breaks the field', () => {
+  it('keeps the only catcher behind the plate when a goal would move her, and reports the goal', () => {
+    // Thirteen present with Rowan and Riley out, so Delaney is the only
+    // player who can catch. A goal sends her to third base. Honoring it would
+    // leave nobody to catch, so the field wins: she catches, the goal is
+    // reported as not fully met, and the solver does not stop.
+    const onlyOneCatcher = ALL_IDS.filter((id) => !['rowan', 'riley'].includes(id))
+    const goals: Goal[] = [{ playerId: 'delaney', verb: 'FieldsAt', position: '3B' }]
+    const practice = solveWith(goals, { presentPlayerIds: onlyOneCatcher })
+
+    expect(practice.blockers, 'the solver stopped instead of adjusting').toHaveLength(0)
+    expect(practice.rounds).toHaveLength(7)
+    for (const round of practice.rounds) {
+      const catcher = round.field.find((a) => a.position === 'C')
+      expect(catcher?.playerId, 'someone other than the only catcher is catching').toBe('delaney')
+    }
+    const unmetPlayerIds = practice.unmetGoals.map((u) => u.goal.playerId)
+    expect(unmetPlayerIds, "Delaney's skipped goal was not reported").toContain('delaney')
+  })
+})
+
+describe('a rest goal means extra time off in the field', () => {
+  it('sits her about half the rounds her side fields, and she still bats', () => {
+    const goals: Goal[] = [{ playerId: 'kennedy', verb: 'Rest' }]
+    const practice = solveWith(goals)
+    expect(practice.rounds).toHaveLength(7)
+
+    // Rounds where Kennedy's team is not the one hitting are her chances to field.
+    const herTeam = practice.teams.find((team) => team.playerIds.includes('kennedy'))
+    expect(herTeam).toBeDefined()
+    let chancesToField = 0
+    let roundsFielded = 0
+    let timesBatted = 0
+    for (const round of practice.rounds) {
+      const herTeamIsHitting = round.batters.every((batter) =>
+        herTeam!.playerIds.includes(batter),
+      )
+      if (!herTeamIsHitting) chancesToField += 1
+      if (fielderIds(round).includes('kennedy')) roundsFielded += 1
+      if (round.batters.includes('kennedy')) timesBatted += 1
+    }
+
+    expect(
+      Math.abs(roundsFielded - chancesToField / 2),
+      `she fielded ${roundsFielded} of ${chancesToField} chances`,
+    ).toBeLessThanOrEqual(1)
+    expect(roundsFielded, 'a rest goal must not bench her completely').toBeGreaterThan(0)
+    expect(timesBatted, 'a rest goal took her out of the batting order').toBeGreaterThan(0)
+  })
+})
+
+describe('maximize at-bats moves her up the order', () => {
+  it("leads off her side's batting order and bats at least as often as any teammate", () => {
+    const goals: Goal[] = [{ playerId: 'peyton', verb: 'MaximizeAtBats' }]
+    const practice = solveWith(goals)
+
+    const herTeam = practice.teams.find((team) => team.playerIds.includes('peyton'))
+    expect(herTeam).toBeDefined()
+    expect(herTeam!.battingOrder[0], 'she is not leading off').toBe('peyton')
+
+    const timesBatted = new Map<string, number>()
+    for (const round of practice.rounds) {
+      for (const batter of round.batters) {
+        timesBatted.set(batter, (timesBatted.get(batter) ?? 0) + 1)
+      }
+    }
+    const hers = timesBatted.get('peyton') ?? 0
+    for (const teammate of herTeam!.battingOrder) {
+      expect(hers, `${teammate} batted more often than she did`).toBeGreaterThanOrEqual(
+        timesBatted.get(teammate) ?? 0,
+      )
+    }
+  })
+})
+
 describe('fielding and hitting alternate naturally', () => {
   it('does not report a fielding goal unmet in rounds her team is hitting', () => {
     const goals: Goal[] = [{ playerId: 'mia', verb: 'FieldsAt', position: 'SS' }]
