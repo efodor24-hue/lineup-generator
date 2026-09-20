@@ -110,6 +110,36 @@ describe('everyone plays', () => {
   })
 })
 
+describe('everyone plays, even a pitcher who does not hit', () => {
+  it('gets a non-hitting pitcher into the practice when a teammate could pitch every round', () => {
+    // Found on the real roster (ELL-228). Two pitchers who do not bat land on
+    // the same team. One only pitches; the other could also stand in the
+    // outfield in an emergency. The solver kept handing the ball to the
+    // pitcher-only player, and the other one never appeared at all. Pitching
+    // is her only way into the practice, so she has to get a turn.
+    const roster = LARGE_TEST_ROSTER.map((player) =>
+      player.id === 'reese'
+        ? {
+            ...player,
+            hits: false,
+            ratings: { ...player.ratings, P: 'Starter' as const, LF: 'EmergencyOnly' as const },
+          }
+        : player,
+    )
+    const practice = solve({
+      roster,
+      session: makeSession({ presentPlayerIds: LARGE_IDS }),
+      goals: [],
+    })
+    expect(practice.rounds).toHaveLength(7)
+
+    const seen = everyoneWhoAppears(practice)
+    for (const id of LARGE_IDS) {
+      expect(seen, `${id} was left out of the whole practice`).toContain(id)
+    }
+  })
+})
+
 describe('nobody is in two places', () => {
   it('never puts a player in the field and the batting group of the same round', () => {
     // The only allowed exception is the mid-round split, which requires an
