@@ -58,6 +58,12 @@ export interface Practice {
 
   // Plain-language notes explaining every flagged assignment.
   footnotes: string[]
+
+  // Plain-language reasons the solver refused to build a lineup at all: too
+  // few players, or a required position nobody present can cover. When this
+  // has anything in it there are no rounds. Empty for a normal practice.
+  // See "Hard rules" in docs/PLANNING.md.
+  blockers: string[]
 }
 
 export interface SolverInput {
@@ -86,5 +92,5 @@ export function solve(input: SolverInput): Practice {
 
   // Not built yet: rounds (ELL-228 onward), unmet goals and footnotes
   // (ELL-229, ELL-233). Until then a practice has teams but no rounds.
-  return { mode, teams, rounds: [], unmetGoals: [], footnotes: [] }
+  return { mode, teams, rounds: [], unmetGoals: [], footnotes: [], blockers: [] }
 }

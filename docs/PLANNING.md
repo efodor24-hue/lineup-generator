@@ -40,7 +40,7 @@ This is the single most misreadable term in the app, so the UI must state it in 
 
 **Playable.** The lineup feels game-like. That means a full infield plus at least two outfielders. Full infield includes the pitcher and catcher: playable is P, C, 1B, 2B, 3B, SS, and at least two outfield spots — eight players minimum on defense. (Clarified during ELL-226.) It does not mean legal. Batting orders can repeat names, players can enter and leave freely, and nobody is checking a rulebook.
 
-**Round structure.** Each round runs either to three outs or to a fixed number of batters. This is set once for the whole session, not per round. Fixed batters is the more common choice because it makes at-bats deterministic and lets the app actually guarantee even reps.
+**Round structure.** Each round runs either to three outs or to a fixed number of batters. This is set once for the whole session, not per round. Fixed batters is the more common choice because it makes at-bats deterministic and lets the app actually guarantee even reps. With fixed batters, a hitting round lists exactly the next N names in the order, and the following round picks up where it stopped. With three outs, the tool cannot know how many batters a round will take, so each hitting round lists the team's whole batting order and the coach picks up wherever they left off. (Decided during ELL-228.)
 
 **Hitting and fielding are separate.** A player has a standing flag for whether she hits at all. Pitchers who do not bat still count as fully participating. Being in the field and being in the batting order are independent facts.
 
@@ -108,7 +108,10 @@ The app picks the mode automatically from headcount. The coach never selects one
 
 1. **Two teams** whenever that is feasible. Feasible means each team can field a playable defense entirely on its own: at least 16 players present (8 per side), and the players can be split so each side has its own pitcher, its own catcher, all four infield spots, and at least two outfielders, with nobody placed at a position she is rated Never. Emergency only counts as covered.
 2. **Three teams** when two teams is not feasible and at least 13 players are present. Two teams combine on defense, so position coverage is much easier.
-3. **Single-field** at 12 or fewer.
+3. **Single-field** at 11 or 12.
+4. **Below 11, no scrimmage.** The tool says there are not enough players rather than building a lineup. (Decided during ELL-228.)
+
+**How single-field mode runs.** (Decided during ELL-228.) The defense always fields a full nine. Whoever is left over hits: a hitting group of 3 with 12 present, 2 with 11. The hitting groups are fixed for the whole practice, like small teams, and take turns: group one hits, then group two, and so on around. Everyone not in the group that is hitting is available for defense. Groups are built the same way teams are, by dealing players out by position, so that (for example) two catchers never land in the same group and leave the defense without one. Players who do not hit are not put in a hitting group. If a round calls for more batters than the group has, the group bats around.
 
 Headcount alone is not enough: 18 players with only one catcher present is three teams, not two.
 
@@ -124,7 +127,9 @@ The solver is a greedy pass down the priority list. No search, no optimization, 
 
 1. **No player is in two places in the same round.** She cannot field and hit simultaneously. This is the top rule.
 2. **Every player marked present appears somewhere in the practice at least once.** Field or batting order, either counts. A pitcher who never bats still counts as included. If someone would be left out entirely, the solver has failed.
-3. **The field is playable in every round:** full infield plus at least two outfielders.
+3. **The field is playable in every round:** full infield plus at least two outfielders. The defense fields nine whenever nine are available, and drops to two outfielders only when they are not.
+
+**When a required position cannot be covered at all, the solver stops.** (Decided during ELL-228.) If nobody present is rated anything other than Never at a required position — no catcher showed up, say — the tool does not quietly put someone there. It builds no lineup and says in plain language which position nobody can cover. The coach fixes it by changing a rating or adding a goal. This is the one deliberate exception to "compromises are flagged, not blocked", along with having fewer than 11 players.
 
 ### Soft objectives, in order
 
@@ -268,13 +273,36 @@ The only exception is the deliberate mid-round split, which must carry a flag. I
 > When her team is the one hitting,
 > Then she appears in both the field at catcher and the batting group for that round,
 > And that assignment is flagged as a mid-round split with a footnote,
-> And nobody else is in two places.
+> And nobody is in two places without that flag.
 
 ### No blanks
 
 > Given enough players to be playable,
 > When any round is inspected,
 > Then every infield position is filled and at least two outfield positions are filled.
+
+> Given nine or more players available for the defense in a round,
+> Then all nine positions are filled, including all three outfield spots.
+
+> Given nobody present is rated anything but Never at catcher,
+> When the solver runs,
+> Then it builds no lineup and says that nobody can cover catcher.
+
+### Single-field mode runs fixed hitting groups
+
+> Given 12 players present,
+> When any round is inspected,
+> Then nine players are in the field and a hitting group of three is batting,
+> And the hitting groups are the same all practice and take turns in order.
+
+> Given 11 players present, then nine are in the field and the hitting group is two.
+> Given 10 players present, then the solver builds no lineup and says there are not enough players.
+
+### Three-outs rounds list the whole order
+
+> Given a session set to three outs per round,
+> When any hitting round is inspected,
+> Then it lists the hitting team's whole batting order.
 
 ### Goals are honored in priority order
 
