@@ -48,6 +48,7 @@ ever needs to go into git, it goes in under placeholder names only.
 
 ## Status
 
-Core types and the fake 15-player test roster exist (build stage 1). No
-solver, no real UI yet — see the build order in `docs/PLANNING.md` and the
+Build stage 2, the headless solver, is underway. It picks the practice mode
+and splits players into teams; it does not build rounds yet, so most behavior
+tests still fail on purpose. No real UI yet — see the build order in `docs/PLANNING.md` and the
 Linear project **Practice Lineup Builder** for what comes next.
