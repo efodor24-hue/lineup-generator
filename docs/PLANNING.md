@@ -81,6 +81,7 @@ This is the same principle as everywhere else in the app: ratings guide the solv
 - Time available, in minutes.
 - Minutes per round, defaulting to 7 and editable.
 - Round structure: three outs, or N batters per round.
+- Today's date. Filled in by the app, never typed. Used only to settle batting-slot ties.
 
 Nothing about a session is saved after it is used. Practice plans already live in Google Docs, and that is where the history belongs.
 
@@ -137,6 +138,10 @@ The solver is a greedy pass down the priority list. No search, no optimization, 
 2. Pitchers get equal innings among today's available pitchers. Their rest pattern is not compared against position players, and it is fine if they get less rest overall. A pitcher is anyone present who is rated to pitch (anything other than Never at P), including a player who also plays a position. For a two-way player like that, her equal share of pitching innings is the only workload limit: in rounds she is not pitching she is free to field her other position or hit, and she is not part of the rest-evenness rule below. (Clarified during ELL-226.)
 3. Rest is spread as evenly as possible across everyone else. No hard cap, just minimize the spread.
 4. Default batting slots, applied last, only once everything else has settled. A player with no default slot is never pushed down the order because of it: missing data is not a penalty. Players without a slot fill the open spots in the order, mixed in with everyone else, not lined up behind all the players who have one. (Decided during ELL-245, so new players with no history are not deprioritized.)
+
+   How the order is built (decided during ELL-231): anyone with a maximize-at-bats goal goes to the top first, because goals outrank slots. Then each player with a default slot takes that spot in her side's order if it is open. A slot bigger than the order — 9 on a side with 8 hitters — means last. If her spot is taken she gets the closest open one, so two players who both hit 4th end up 4th and 5th. Players with no slot then fill whatever spots are left.
+
+   When two players on the same side have the same slot, the tie is settled by today's date. That makes it feel random across a season, with no controls to manage, but it never changes during a practice: re-running after a manual edit gives the same order every time. True randomness was considered and rejected for exactly that reason.
 
 ### The mid-round split, last resort only
 
@@ -384,6 +389,20 @@ The only exception is the deliberate mid-round split, which must carry a flag. I
 > Given 5 batters per round and a hitting group of 6,
 > When round two begins,
 > Then it starts with the 6th batter and wraps, so at-bats stay even across the practice.
+
+### Default batting slots shape the order, and a missing one is no penalty
+
+> Given a side where some players have a default batting slot and some do not,
+> When the batting order is built,
+> Then each player with a slot hits in that spot,
+> And players with no slot fill the spots left open, including spots ahead of players who have one.
+
+> Given a player whose slot is bigger than her side's order, then she hits last.
+
+> Given two players on the same side with the same slot,
+> Then they hit in that spot and the one next to it,
+> And re-running on the same date gives the same order,
+> And over many dates each of them gets the exact slot some of the time.
 
 ### Manual edit becomes a goal
 
