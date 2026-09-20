@@ -144,3 +144,45 @@ export const TEST_ROSTER: Player[] = [
     hits: true,
   },
 ]
+
+// Five more fictional players. Added to the 15 above they make a 20-player
+// roster, the size of a real full-attendance practice, which is the only way
+// to reach two-team mode: each side has to field a playable defense on its own
+// (see "How the mode is picked" in the planning doc). They bring a second
+// real first baseman, a third catcher, a fourth pitcher, and spare depth.
+const EXTRA_PLAYERS: Player[] = [
+  {
+    id: 'blake',
+    name: 'Blake',
+    ratings: ratings({ '1B': 'Starter', '3B': 'Backup' }),
+    hits: true,
+  },
+  {
+    id: 'casey',
+    name: 'Casey',
+    ratings: ratings({ C: 'Starter' }),
+    hits: true,
+  },
+  {
+    // Utility infielder.
+    id: 'dakota',
+    name: 'Dakota',
+    ratings: ratings({ '2B': 'Backup', '3B': 'Backup', SS: 'Backup' }),
+    hits: true,
+  },
+  {
+    // Pitcher who does not bat.
+    id: 'ellis',
+    name: 'Ellis',
+    ratings: ratings({ P: 'Starter' }),
+    hits: false,
+  },
+  {
+    id: 'finley',
+    name: 'Finley',
+    ratings: ratings({ LF: 'Backup', CF: 'Backup', RF: 'Backup' }),
+    hits: true,
+  },
+]
+
+export const LARGE_TEST_ROSTER: Player[] = [...TEST_ROSTER, ...EXTRA_PLAYERS]

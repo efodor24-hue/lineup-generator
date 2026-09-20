@@ -1,7 +1,8 @@
-// The solver's contract: what goes in, what comes out. The solve function
-// below is a deliberate stub that throws — ELL-226 writes the behavior tests
-// first, and this file exists so they compile and fail honestly. The real
-// implementation lands across ELL-227 through ELL-233.
+// The solver's contract: what goes in, what comes out, and the solve function
+// that ties the steps together. It is being built one issue at a time
+// (ELL-227 through ELL-233). So far it picks the mode and the teams; rounds
+// are not built yet, so most behavior tests still fail on purpose.
+import { pickModeAndTeams } from './modeAndTeams'
 import type { Goal, Player, Position, Session } from './types'
 
 // Picked automatically from headcount; the coach never chooses.
@@ -65,6 +66,25 @@ export interface SolverInput {
   goals: Goal[]
 }
 
-export function solve(_input: SolverInput): Practice {
-  throw new Error('solver not implemented yet: the tests come first (ELL-226)')
+export function solve(input: SolverInput): Practice {
+  const presentPlayers = input.roster.filter((player) =>
+    input.session.presentPlayerIds.includes(player.id),
+  )
+
+  // Step one: the mode and the teams, before anyone is assigned anywhere.
+  const { mode, teams: teamsOfPlayers } = pickModeAndTeams(presentPlayers)
+
+  const teams: Team[] = teamsOfPlayers.map((teamPlayers) => ({
+    playerIds: teamPlayers.map((player) => player.id),
+
+    // For now, simply the team's hitters in the order they were dealt.
+    // Real batting-order rules (default slots, carry-over) arrive in ELL-231.
+    battingOrder: teamPlayers
+      .filter((player) => player.hits)
+      .map((player) => player.id),
+  }))
+
+  // Not built yet: rounds (ELL-228 onward), unmet goals and footnotes
+  // (ELL-229, ELL-233). Until then a practice has teams but no rounds.
+  return { mode, teams, rounds: [], unmetGoals: [], footnotes: [] }
 }

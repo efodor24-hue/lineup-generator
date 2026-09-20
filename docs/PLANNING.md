@@ -104,6 +104,16 @@ The app picks the mode automatically from headcount. The coach never selects one
 
 **Single-field mode (short-handed).** When there are not enough players for real teams, the structure changes rather than degrades. There is one defense on the field and a rotating hitting group, which may be only three or four people. There are no teams at all in this mode.
 
+**How the mode is picked.** (Decided during ELL-227.) The solver prefers the biggest teams that actually work, in this order:
+
+1. **Two teams** whenever that is feasible. Feasible means each team can field a playable defense entirely on its own: at least 16 players present (8 per side), and the players can be split so each side has its own pitcher, its own catcher, all four infield spots, and at least two outfielders, with nobody placed at a position she is rated Never. Emergency only counts as covered.
+2. **Three teams** when two teams is not feasible and at least 13 players are present. Two teams combine on defense, so position coverage is much easier.
+3. **Single-field** at 12 or fewer.
+
+Headcount alone is not enough: 18 players with only one catcher present is three teams, not two.
+
+**How players are split into teams.** (Decided during ELL-227.) By position only. The solver deals players out one at a time, going around the teams: all the pitchers first, then the catchers, then the infielders, then the outfielders. That spreads every position group evenly and keeps team sizes within one of each other. Because pitchers are spread out, non-hitters are too, so batting orders come out about the same length. Nothing else is balanced — not talent, not batting slots. A player's group is the one she is rated best at; anyone rated to pitch counts as a pitcher.
+
 The modes are genuinely different products of the solver, not variations in team count. In particular they need different output views, covered below.
 
 ## Solver rules
@@ -291,6 +301,17 @@ The only exception is the deliberate mid-round split, which requires an active m
 
 > Given 15 players present, then the solver produces three fixed teams, one hitting while two field.
 > Given 12 players present, then the solver produces single-field mode with one defense and a rotating hitting group, and no teams.
+> Given 13 players present, then the solver produces three fixed teams.
+> Given 20 players present who can be split into two sides that each field a playable defense alone, then the solver produces two fixed teams, each with its own pitcher and catcher.
+> Given 17 players present but only one of them able to catch, then the solver produces three teams, not two, because two sides cannot each have a catcher.
+
+### Teams are split by position
+
+> Given enough players for teams,
+> When the solver splits them,
+> Then pitchers are dealt out evenly across the teams, then catchers, then infielders, then outfielders,
+> And team sizes differ by at most one,
+> And nothing else is balanced: not talent, not batting slots.
 
 ### Batting order carries over
 
@@ -373,7 +394,6 @@ Git: GitHub, one branch per Linear issue using Linear's generated branch name, o
 These are easier to answer once something is running than in the abstract. None of them block starting.
 
 - **Rest distribution.** Even spread is the stated objective, but whether that actually feels right in practice is unclear until real output exists. Watch what it does over seven rounds and adjust.
-- **Exact headcount thresholds for mode selection.** Roughly, 15 or so goes three teams and 12 goes single-field, but where the lines sit needs testing against real attendance numbers.
 - **Table layout for the coach view.** Rounds as columns reads compactly but gets crowded with multiple teams. Worth building the simplest version and looking at it before deciding.
 - **How visible the compromise flags should be.** An asterisk with a footnote is the plan. Whether that is enough, or too much, is a see-it question.
 - **Whether the three-team rotation needs its own rest logic**, separate from the general even-spread rule.
