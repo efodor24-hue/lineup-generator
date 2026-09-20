@@ -48,7 +48,9 @@ ever needs to go into git, it goes in under placeholder names only.
 
 ## Status
 
-Build stage 2, the headless solver, is underway. It picks the practice mode
-and splits players into teams; it does not build rounds yet, so most behavior
-tests still fail on purpose. No real UI yet — see the build order in `docs/PLANNING.md` and the
-Linear project **Practice Lineup Builder** for what comes next.
+Build stage 2, the headless solver, is underway. It picks the practice mode,
+splits players into teams, and builds rounds that obey the three hard rules.
+Goals, even pitching and rest, and compromise flags are not built yet, so
+those behavior tests still fail on purpose. No real UI yet — see the build
+order in `docs/PLANNING.md` and the Linear project **Practice Lineup Builder**
+for what comes next.

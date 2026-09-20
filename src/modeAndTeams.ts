@@ -58,7 +58,7 @@ function positionGroupOf(player: Player): PositionGroup {
 // then the catchers, then the infielders, then the outfielders. That spreads
 // every group evenly and keeps team sizes within one of each other. Nothing
 // else is balanced — not talent, not batting slots.
-function dealIntoTeams(players: Player[], teamCount: number): Player[][] {
+export function dealIntoTeams(players: Player[], teamCount: number): Player[][] {
   const dealingOrder: Player[] = []
   for (const group of GROUP_ORDER) {
     for (const player of players) {

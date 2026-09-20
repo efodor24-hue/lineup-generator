@@ -2,7 +2,8 @@
 // that ties the steps together. It is being built one issue at a time
 // (ELL-227 through ELL-233). So far it picks the mode and the teams; rounds
 // are not built yet, so most behavior tests still fail on purpose.
-import { pickModeAndTeams } from './modeAndTeams'
+import { dealIntoTeams, pickModeAndTeams } from './modeAndTeams'
+import { buildRounds, findUncoverablePositions } from './rounds'
 import type { Goal, Player, Position, Session } from './types'
 
 // Picked automatically from headcount; the coach never chooses.
@@ -72,6 +73,30 @@ export interface SolverInput {
   goals: Goal[]
 }
 
+// Fewer than this and there is no real hitting group left once nine are in
+// the field, so there is no scrimmage. (Decided with Ellie, ELL-228.)
+const MIN_PLAYERS_FOR_A_SCRIMMAGE = 11
+
+// The defense always fields a full nine in single-field mode; whoever is
+// left over hits.
+const FIELDERS_IN_SINGLE_FIELD_MODE = 9
+
+// The ids of the players on a side who bat, in the order they were dealt.
+// Real batting-order rules (default slots) arrive in ELL-231.
+function hittersOf(players: Player[]): string[] {
+  return players.filter((player) => player.hits).map((player) => player.id)
+}
+
+// Single-field mode has no teams, but it does have fixed hitting groups that
+// take turns, built the same way teams are: dealt out by position. Players
+// who do not hit are not in a group, so they are always free for the defense.
+function buildHittingGroups(presentPlayers: Player[]): Player[][] {
+  const groupSize = presentPlayers.length - FIELDERS_IN_SINGLE_FIELD_MODE
+  const hitters = presentPlayers.filter((player) => player.hits)
+  const groupCount = Math.ceil(hitters.length / groupSize)
+  return dealIntoTeams(hitters, groupCount)
+}
+
 export function solve(input: SolverInput): Practice {
   const presentPlayers = input.roster.filter((player) =>
     input.session.presentPlayerIds.includes(player.id),
@@ -82,15 +107,38 @@ export function solve(input: SolverInput): Practice {
 
   const teams: Team[] = teamsOfPlayers.map((teamPlayers) => ({
     playerIds: teamPlayers.map((player) => player.id),
-
-    // For now, simply the team's hitters in the order they were dealt.
-    // Real batting-order rules (default slots, carry-over) arrive in ELL-231.
-    battingOrder: teamPlayers
-      .filter((player) => player.hits)
-      .map((player) => player.id),
+    battingOrder: hittersOf(teamPlayers),
   }))
 
-  // Not built yet: rounds (ELL-228 onward), unmet goals and footnotes
-  // (ELL-229, ELL-233). Until then a practice has teams but no rounds.
-  return { mode, teams, rounds: [], unmetGoals: [], footnotes: [], blockers: [] }
+  // Step two: reasons to stop before building anything.
+  const blockers: string[] = []
+  if (presentPlayers.length < MIN_PLAYERS_FOR_A_SCRIMMAGE) {
+    blockers.push(
+      `Only ${presentPlayers.length} players are here today. ` +
+        `A scrimmage needs at least ${MIN_PLAYERS_FOR_A_SCRIMMAGE}: nine in the field and two to hit.`,
+    )
+  }
+  blockers.push(...findUncoverablePositions(presentPlayers))
+  if (blockers.length > 0) {
+    return { mode, teams, rounds: [], unmetGoals: [], footnotes: [], blockers }
+  }
+
+  // Step three: the rounds. The sides that take turns hitting are the teams,
+  // or in single-field mode the fixed hitting groups.
+  const hittingSides =
+    mode === 'singleField' ? buildHittingGroups(presentPlayers) : teamsOfPlayers
+  const battingOrders = hittingSides.map((side) => hittersOf(side))
+
+  const built = buildRounds(presentPlayers, hittingSides, battingOrders, input.session)
+
+  // Not built yet: goals and unmet goals (ELL-229), even pitching and rest
+  // (ELL-232), Emergency-only flags (ELL-233).
+  return {
+    mode,
+    teams,
+    rounds: built.rounds,
+    unmetGoals: [],
+    footnotes: built.footnotes,
+    blockers: built.blockers,
+  }
 }
