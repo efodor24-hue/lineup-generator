@@ -14,7 +14,10 @@ export type Mode = 'twoTeams' | 'threeTeams' | 'singleField'
 //   emergencyOnly  the position was covered by an EmergencyOnly-rated player
 //   overrodeNever  an explicit goal placed a player somewhere rated Never
 //   midRoundSplit  the last-resort mid-round position split was used
-export type AssignmentFlag = 'emergencyOnly' | 'overrodeNever' | 'midRoundSplit'
+//   borrowed       she fields for the other side in a round her own side is
+//                  hitting but she is not up, because nobody on the defense
+//                  can play the position
+export type AssignmentFlag = 'emergencyOnly' | 'overrodeNever' | 'midRoundSplit' | 'borrowed'
 
 export interface FieldAssignment {
   playerId: string
@@ -81,10 +84,23 @@ const MIN_PLAYERS_FOR_A_SCRIMMAGE = 11
 // left over hits.
 const FIELDERS_IN_SINGLE_FIELD_MODE = 9
 
-// The ids of the players on a side who bat, in the order they were dealt.
-// Real batting-order rules (default slots) arrive in ELL-231.
-function hittersOf(players: Player[]): string[] {
-  return players.filter((player) => player.hits).map((player) => player.id)
+// A side's batting order: the players who bat, in the order they were dealt,
+// except that anyone with a maximize-at-bats goal moves to the top so she
+// comes around more often (highest-priority goal first). Default batting
+// slots arrive in ELL-231.
+function battingOrderOf(players: Player[], goals: Goal[]): string[] {
+  const hitterIds = players.filter((player) => player.hits).map((player) => player.id)
+
+  const movedUp: string[] = []
+  for (const goal of goals) {
+    const isOnThisSide = hitterIds.includes(goal.playerId)
+    if (goal.verb === 'MaximizeAtBats' && isOnThisSide && !movedUp.includes(goal.playerId)) {
+      movedUp.push(goal.playerId)
+    }
+  }
+
+  const everyoneElse = hitterIds.filter((id) => !movedUp.includes(id))
+  return [...movedUp, ...everyoneElse]
 }
 
 // Single-field mode has no teams, but it does have fixed hitting groups that
@@ -107,7 +123,7 @@ export function solve(input: SolverInput): Practice {
 
   const teams: Team[] = teamsOfPlayers.map((teamPlayers) => ({
     playerIds: teamPlayers.map((player) => player.id),
-    battingOrder: hittersOf(teamPlayers),
+    battingOrder: battingOrderOf(teamPlayers, input.goals),
   }))
 
   // Step two: reasons to stop before building anything.
@@ -118,7 +134,7 @@ export function solve(input: SolverInput): Practice {
         `A scrimmage needs at least ${MIN_PLAYERS_FOR_A_SCRIMMAGE}: nine in the field and two to hit.`,
     )
   }
-  blockers.push(...findUncoverablePositions(presentPlayers))
+  blockers.push(...findUncoverablePositions(presentPlayers, input.goals))
   if (blockers.length > 0) {
     return { mode, teams, rounds: [], unmetGoals: [], footnotes: [], blockers }
   }
@@ -127,17 +143,23 @@ export function solve(input: SolverInput): Practice {
   // or in single-field mode the fixed hitting groups.
   const hittingSides =
     mode === 'singleField' ? buildHittingGroups(presentPlayers) : teamsOfPlayers
-  const battingOrders = hittingSides.map((side) => hittersOf(side))
+  const battingOrders = hittingSides.map((side) => battingOrderOf(side, input.goals))
 
-  const built = buildRounds(presentPlayers, hittingSides, battingOrders, input.session)
+  const built = buildRounds(
+    presentPlayers,
+    hittingSides,
+    battingOrders,
+    input.session,
+    input.goals,
+  )
 
-  // Not built yet: goals and unmet goals (ELL-229), even pitching and rest
-  // (ELL-232), Emergency-only flags (ELL-233).
+  // Not built yet: even pitching and even rest (ELL-232), default batting
+  // slots (ELL-231).
   return {
     mode,
     teams,
     rounds: built.rounds,
-    unmetGoals: [],
+    unmetGoals: built.unmetGoals,
     footnotes: built.footnotes,
     blockers: built.blockers,
   }

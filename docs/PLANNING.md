@@ -147,6 +147,8 @@ The solver may only consider it in two situations, and never by default:
 1. A maximize-at-bats goal is active on that player.
 2. She is due to hit, and nobody else available for the defense can cover a required position she plays — for example the only catcher at practice, in a round her team is up. Hard rules 1 and 3 collide here, and this is how the collision is settled: she does both. If anyone rated Emergency only or better can cover the position, that player fills in instead (flagged as usual) and there is no split. (Decided during ELL-228.)
 
+**Borrowing comes before splitting.** (Decided during ELL-229.) When nobody on the defense can cover a required position, the solver first looks for someone on the hitting side who is not batting this round. She is free, so she simply fields, but she is fielding for the other side, and the coach should know: the assignment is flagged with an asterisk and a footnote saying she was borrowed and why. Only if nobody free can cover it does the solver fall back to the split.
+
 When a split is used the result is flagged. The lineup shows her fielding and hitting in the same round, with an asterisk and a footnote. The tool does not name who covers her spot during her at-bat; the coach sorts that out on the field.
 
 ## Goals
@@ -159,9 +161,13 @@ Because there is no language model, goals are built from dropdowns rather than t
 | --- | --- | --- |
 | Fields at | Yes | She plays this position whenever her team is on defense |
 | Maximize at-bats | No | Move her up in the order so she comes around more often |
-| Rest | No | Keep her out of this round entirely |
+| Rest | No | Give her extra time off in the field: she sits about half the rounds she would otherwise field |
 
 Maximize is a quality, not a number. The coach does not want to specify how many at-bats, just that this person should get more of them.
+
+Rest is a quality too. (Decided during ELL-229; the doc used to say "keep her out of this round", but a goal has no way to name a round.) The coach does not pick rounds. A player with a Rest goal sits out roughly every other round her side is in the field and plays the others, so she is clearly lighter than everyone else but still gets real reps. Rest only affects fielding: she bats in her normal turn, because hitting and fielding are independent. To take her out of the order as well, mark her as not hitting. If the field cannot be made playable without her in a round she was due to sit, the hard rule wins, she plays, and the goal is reported as not fully met.
+
+**A goal never breaks the field.** If honoring a goal in some round would leave a required position with nobody to play it, the solver skips the goal for that round, keeps the field playable, and reports the goal as not fully met. It does not stop.
 
 Group goals are out of scope for the MVP. Wanting all four catchers to maximize at-bats means adding four goals by hand, which is acceptable.
 
@@ -275,6 +281,9 @@ The only exception is the deliberate mid-round split, which must carry a flag. I
 > And that assignment is flagged as a mid-round split with a footnote,
 > And nobody is in two places without that flag.
 
+> Given the same practice, in a round her team is hitting but she is not one of the batters,
+> Then she catches for the defense, and that assignment is flagged as borrowed with a footnote.
+
 ### No blanks
 
 > Given enough players to be playable,
@@ -309,6 +318,24 @@ The only exception is the deliberate mid-round split, which must carry a flag. I
 > Given a goal "Mia fields at shortstop" ranked above "Sydney fields at shortstop",
 > When the two cannot both be satisfied,
 > Then Mia gets shortstop and Sydney's goal is reported unmet.
+
+> Given a goal that puts the only available catcher at third base,
+> When honoring it would leave nobody to catch,
+> Then she catches, the field stays playable, the goal is reported as not fully met, and the solver does not stop.
+
+### A Rest goal means extra time off in the field
+
+> Given a player with a Rest goal,
+> When the practice is built,
+> Then she sits about half the rounds her side is in the field and plays the others,
+> And she still bats in her normal turn.
+
+### Maximize at-bats moves her up the order
+
+> Given a player with a maximize-at-bats goal,
+> When her side's batting order is built,
+> Then she leads it off,
+> And over the practice she comes to the plate at least as often as anyone else on her side.
 
 ### Fielding and hitting alternate naturally
 
