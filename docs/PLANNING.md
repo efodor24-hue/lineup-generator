@@ -104,6 +104,14 @@ The app picks the mode automatically from headcount. The coach never selects one
 
 **Single-field mode (short-handed).** When there are not enough players for real teams, the structure changes rather than degrades. There is one defense on the field and a rotating hitting group, which may be only three or four people. There are no teams at all in this mode.
 
+**How the mode is picked.** (Decided during ELL-227.) The solver prefers the biggest teams that actually work, in this order:
+
+1. **Two teams** whenever that is feasible. Feasible means each team can field a playable defense entirely on its own: at least 16 players present (8 per side), and the players can be split so each side has its own pitcher, its own catcher, all four infield spots, and at least two outfielders, with nobody placed at a position she is rated Never. Emergency only counts as covered.
+2. **Three teams** when two teams is not feasible and at least 13 players are present. Two teams combine on defense, so position coverage is much easier.
+3. **Single-field** at 12 or fewer.
+
+Headcount alone is not enough: 18 players with only one catcher present is three teams, not two.
+
 The modes are genuinely different products of the solver, not variations in team count. In particular they need different output views, covered below.
 
 ## Solver rules
@@ -373,7 +381,6 @@ Git: GitHub, one branch per Linear issue using Linear's generated branch name, o
 These are easier to answer once something is running than in the abstract. None of them block starting.
 
 - **Rest distribution.** Even spread is the stated objective, but whether that actually feels right in practice is unclear until real output exists. Watch what it does over seven rounds and adjust.
-- **Exact headcount thresholds for mode selection.** Roughly, 15 or so goes three teams and 12 goes single-field, but where the lines sit needs testing against real attendance numbers.
 - **Table layout for the coach view.** Rounds as columns reads compactly but gets crowded with multiple teams. Worth building the simplest version and looking at it before deciding.
 - **How visible the compromise flags should be.** An asterisk with a footnote is the plan. Whether that is enough, or too much, is a see-it question.
 - **Whether the three-team rotation needs its own rest logic**, separate from the general even-spread rule.
