@@ -65,6 +65,12 @@ export interface Session {
   minutesPerRound: number
 
   roundStructure: RoundStructure
+
+  // Today's date as YYYY-MM-DD. Filled in by the app, never typed. Used only
+  // to settle ties between players with the same default batting slot, so the
+  // tie goes differently on different days but never changes during one
+  // practice. See soft objective 4 in the planning doc.
+  date: string
 }
 
 // What a goal verb means:

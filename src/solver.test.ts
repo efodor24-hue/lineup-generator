@@ -38,6 +38,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     minutesAvailable: 49,
     minutesPerRound: 7,
     roundStructure: { kind: 'fixedBatters', battersPerRound: 5 },
+    date: '2026-09-21',
     ...overrides,
   }
 }
@@ -638,6 +639,89 @@ describe('batting order carries over', () => {
         ).toBe(team.battingOrder[index % team.battingOrder.length])
       })
     }
+  })
+})
+
+describe('default batting slots shape the order, and a missing one is no penalty', () => {
+  it('puts each player in her slot and lets players without one fill the open spots', () => {
+    // Four test players have slots: Kennedy 1, Mia 2, Maya 3, Sydney 4.
+    const practice = solveWith()
+    const slots: Record<string, number> = { kennedy: 1, mia: 2, maya: 3, sydney: 4 }
+
+    for (const team of practice.teams) {
+      for (const [id, slot] of Object.entries(slots)) {
+        if (!team.battingOrder.includes(id)) continue
+        expect(team.battingOrder[slot - 1], `${id} is not hitting ${slot}`).toBe(id)
+      }
+    }
+
+    // Maya (3) and Sydney (4) share a team, so spots 1 and 2 of that order are
+    // open. They go to players with no slot, who therefore hit ahead of two
+    // players who have one. Missing data is not a penalty.
+    const theirTeam = practice.teams.find((team) => team.playerIds.includes('maya'))
+    expect(theirTeam).toBeDefined()
+    const leadoff = theirTeam!.battingOrder[0]
+    expect(Object.keys(slots), 'the leadoff spot went to a slotted player').not.toContain(leadoff)
+  })
+
+  it('treats a slot bigger than the order as hitting last', () => {
+    const roster = TEST_ROSTER.map((player) =>
+      player.id === 'avery' ? { ...player, defaultBattingSlot: 9 } : player,
+    )
+    const practice = solve({ roster, session: makeSession(), goals: [] })
+    const herTeam = practice.teams.find((team) => team.playerIds.includes('avery'))
+    expect(herTeam).toBeDefined()
+    const order = herTeam!.battingOrder
+    expect(order[order.length - 1], 'she is not hitting last').toBe('avery')
+  })
+
+  it('keeps slotted players in slot order even when several want the last spot', () => {
+    // Found on the real roster (ELL-231): two 9-hole hitters on a side with
+    // fewer than nine hitters. One took last, and the other jumped ahead of a
+    // 4-hole hitter to find an open spot. Slotted players must stay in slot
+    // order relative to each other.
+    const slots: Record<string, number> = { quinn: 9, rowan: 9, peyton: 4 }
+    const roster = TEST_ROSTER.map((player) =>
+      slots[player.id] ? { ...player, defaultBattingSlot: slots[player.id] } : player,
+    )
+    const practice = solve({ roster, session: makeSession(), goals: [] })
+    const team = practice.teams.find((t) => t.playerIds.includes('peyton'))
+    expect(team).toBeDefined()
+
+    // That side is Kennedy 1, Mia 2, Peyton 4, and the two 9s.
+    const order = team!.battingOrder
+    expect(order.slice(0, 3)).toEqual(['kennedy', 'mia', 'peyton'])
+    expect(order.slice(3).sort()).toEqual(['quinn', 'rowan'])
+  })
+
+  it('settles a shared slot by the date: stable all day, different across days', () => {
+    // Maya and Sydney are on the same team. Give them both slot 3.
+    const roster = TEST_ROSTER.map((player) =>
+      player.id === 'sydney' ? { ...player, defaultBattingSlot: 3 } : player,
+    )
+    function orderOn(date: string): string[] {
+      const practice = solve({ roster, session: makeSession({ date }), goals: [] })
+      const team = practice.teams.find((t) => t.playerIds.includes('maya'))
+      return team!.battingOrder
+    }
+
+    // They hit third and fourth, one way round or the other.
+    const today = orderOn('2026-09-21')
+    expect([today[2], today[3]].sort()).toEqual(['maya', 'sydney'])
+
+    // Re-running on the same date never reshuffles.
+    expect(orderOn('2026-09-21')).toEqual(today)
+
+    // Across a month of dates, each of them gets the exact slot sometimes.
+    const thirdHitters = new Set<string>()
+    for (let day = 1; day <= 30; day++) {
+      const date = `2026-10-${String(day).padStart(2, '0')}`
+      thirdHitters.add(orderOn(date)[2])
+    }
+    expect([...thirdHitters].sort(), 'the same player won the tie every single day').toEqual([
+      'maya',
+      'sydney',
+    ])
   })
 })
 
