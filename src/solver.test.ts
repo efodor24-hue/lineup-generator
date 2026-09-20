@@ -110,6 +110,36 @@ describe('everyone plays', () => {
   })
 })
 
+describe('everyone plays, even a pitcher who does not hit', () => {
+  it('gets a non-hitting pitcher into the practice when a teammate could pitch every round', () => {
+    // Found on the real roster (ELL-228). Two pitchers who do not bat land on
+    // the same team. One only pitches; the other could also stand in the
+    // outfield in an emergency. The solver kept handing the ball to the
+    // pitcher-only player, and the other one never appeared at all. Pitching
+    // is her only way into the practice, so she has to get a turn.
+    const roster = LARGE_TEST_ROSTER.map((player) =>
+      player.id === 'reese'
+        ? {
+            ...player,
+            hits: false,
+            ratings: { ...player.ratings, P: 'Starter' as const, LF: 'EmergencyOnly' as const },
+          }
+        : player,
+    )
+    const practice = solve({
+      roster,
+      session: makeSession({ presentPlayerIds: LARGE_IDS }),
+      goals: [],
+    })
+    expect(practice.rounds).toHaveLength(7)
+
+    const seen = everyoneWhoAppears(practice)
+    for (const id of LARGE_IDS) {
+      expect(seen, `${id} was left out of the whole practice`).toContain(id)
+    }
+  })
+})
+
 describe('nobody is in two places', () => {
   it('never puts a player in the field and the batting group of the same round', () => {
     // The only allowed exception is the mid-round split, which requires an
@@ -126,6 +156,51 @@ describe('nobody is in two places', () => {
       }
     }
   })
+
+  it('lets the only catcher field and hit in the same round, flagged, when her team is up', () => {
+    // Thirteen present, three teams, and with Rowan and Riley out Delaney is
+    // the only player who can catch at any level. When her team hits, hard
+    // rules 1 and 3 collide. Ellie's call: she does both, and it is flagged.
+    const onlyOneCatcher = ALL_IDS.filter((id) => !['rowan', 'riley'].includes(id))
+    const practice = solveWith([], { presentPlayerIds: onlyOneCatcher })
+    expect(practice.rounds.length).toBeGreaterThan(0)
+
+    let delaneySplitRounds = 0
+    for (const round of practice.rounds) {
+      for (const assignment of round.field) {
+        const alsoBatting = round.batters.includes(assignment.playerId)
+        if (alsoBatting) {
+          expect(
+            assignment.flag,
+            `${assignment.playerId} is in two places with no mid-round split flag`,
+          ).toBe('midRoundSplit')
+        }
+        if (alsoBatting && assignment.playerId === 'delaney') {
+          expect(assignment.position).toBe('C')
+          delaneySplitRounds += 1
+        }
+      }
+    }
+    expect(delaneySplitRounds, 'Delaney never caught and hit in the same round').toBeGreaterThan(0)
+    expect(practice.footnotes.length, 'no footnote explains the split').toBeGreaterThan(0)
+  })
+
+  it('keeps the two sides apart in two-team mode: one team fields while the other hits', () => {
+    const practice = solveLargeRoster(LARGE_IDS)
+    expect(practice.rounds).toHaveLength(7)
+
+    practice.rounds.forEach((round, index) => {
+      // Teams alternate: team one hits first, then team two, and so on.
+      const hittingTeam = practice.teams[index % 2]
+      const fieldingTeam = practice.teams[(index + 1) % 2]
+      for (const batter of round.batters) {
+        expect(hittingTeam.playerIds, `${batter} batted out of turn`).toContain(batter)
+      }
+      for (const id of fielderIds(round)) {
+        expect(fieldingTeam.playerIds, `${id} fielded while her team was hitting`).toContain(id)
+      }
+    })
+  })
 })
 
 describe('no blanks', () => {
@@ -141,6 +216,94 @@ describe('no blanks', () => {
       )
       expect(outfielders.length, 'fewer than two outfielders').toBeGreaterThanOrEqual(2)
     }
+  })
+
+  it('fields all nine positions when nine or more players are available for the defense', () => {
+    // Fifteen present, three teams of five: ten players are on the two
+    // fielding teams every round, so there is no reason to leave a spot open.
+    const practice = solveWith()
+    expect(practice.rounds).toHaveLength(7)
+    for (const round of practice.rounds) {
+      const filled = new Set(round.field.map((assignment) => assignment.position))
+      expect(filled.size, 'a position was left open with players to spare').toBe(9)
+    }
+  })
+
+  it('builds no lineup and says so when nobody present can catch', () => {
+    // Delaney, Rowan, and Riley are the only players rated at catcher at any
+    // level. With all three out, the tool stops rather than guessing.
+    const noCatcher = ALL_IDS.filter(
+      (id) => !['delaney', 'rowan', 'riley'].includes(id),
+    )
+    const practice = solveWith([], { presentPlayerIds: noCatcher })
+    expect(practice.rounds).toHaveLength(0)
+    expect(practice.blockers.length, 'no reason was given').toBeGreaterThan(0)
+    expect(practice.blockers.join(' ').toLowerCase()).toContain('catcher')
+  })
+})
+
+describe('single-field mode runs fixed hitting groups', () => {
+  it('fields nine and bats a fixed group of three when twelve are present', () => {
+    const practice = solveWith([], { presentPlayerIds: TWELVE_IDS })
+    expect(practice.rounds).toHaveLength(7)
+
+    const groupsInOrder: string[][] = []
+    for (const round of practice.rounds) {
+      expect(round.field, 'the defense is not a full nine').toHaveLength(9)
+
+      // Five batters per round from a group of three means the group bats
+      // around, so count the different players, not the plate appearances.
+      const hittingGroup = [...new Set(round.batters)].sort()
+      expect(hittingGroup.length, 'the hitting group is bigger than three').toBeLessThanOrEqual(3)
+      expect(hittingGroup.length).toBeGreaterThanOrEqual(1)
+      groupsInOrder.push(hittingGroup)
+    }
+
+    // Groups are fixed and take turns: every group that comes up again is the
+    // same players as before, and no player is in two different groups.
+    const distinctGroups = [...new Set(groupsInOrder.map((group) => group.join(',')))]
+    const everyGroupMember = distinctGroups.flatMap((group) => group.split(','))
+    expect(
+      new Set(everyGroupMember).size,
+      'a player showed up in two different hitting groups',
+    ).toBe(everyGroupMember.length)
+
+    const groupCount = distinctGroups.length
+    groupsInOrder.forEach((group, index) => {
+      expect(group, 'the groups did not take turns in order').toEqual(
+        groupsInOrder[index % groupCount],
+      )
+    })
+  })
+
+  it('shrinks the hitting group to two when eleven are present', () => {
+    const eleven = TWELVE_IDS.filter((id) => id !== 'jordan')
+    const practice = solveWith([], { presentPlayerIds: eleven })
+    expect(practice.mode).toBe('singleField')
+    expect(practice.rounds).toHaveLength(7)
+    for (const round of practice.rounds) {
+      expect(new Set(round.batters).size, 'the hitting group is bigger than two').toBeLessThanOrEqual(2)
+      expect(round.field, 'the defense is not a full nine').toHaveLength(9)
+    }
+  })
+
+  it('builds no lineup and says so when only ten are present', () => {
+    const ten = TWELVE_IDS.filter((id) => !['jordan', 'riley'].includes(id))
+    const practice = solveWith([], { presentPlayerIds: ten })
+    expect(practice.rounds).toHaveLength(0)
+    expect(practice.blockers.length, 'no reason was given').toBeGreaterThan(0)
+  })
+})
+
+describe('three-outs rounds list the whole order', () => {
+  it("lists the hitting team's whole batting order every round", () => {
+    const practice = solveWith([], { roundStructure: { kind: 'threeOuts' } })
+    expect(practice.rounds).toHaveLength(7)
+
+    practice.rounds.forEach((round, index) => {
+      const hittingTeam = practice.teams[index % practice.teams.length]
+      expect(round.batters).toEqual(hittingTeam.battingOrder)
+    })
   })
 })
 
