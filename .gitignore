@@ -8,6 +8,10 @@ dist/
 .env
 .env.*
 
+# Private data — the real team roster lives here and is never committed.
+# This repo is public; real player names and ratings stay on the local machine.
+private/
+
 # Editor and OS cruft
 .vscode/
 .idea/
