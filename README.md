@@ -38,6 +38,14 @@ npm run build
 Type-checks and produces the deployable static site in `dist/`. Preview that
 exact build with `npm run preview`.
 
+## The private folder
+
+`private/` is ignored by git and holds the real team roster, used only for
+checking lineups by eye against players the coaches know. This repo is public,
+so nothing in `private/` is ever committed. The automated tests do not use it —
+they run against the fake roster in `src/testRoster.ts`. If real roster data
+ever needs to go into git, it goes in under placeholder names only.
+
 ## Status
 
 Core types and the fake 15-player test roster exist (build stage 1). No

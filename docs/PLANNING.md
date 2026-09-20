@@ -121,7 +121,7 @@ The solver is a greedy pass down the priority list. No search, no optimization, 
 1. Goals, in the coach's priority order.
 2. Pitchers get equal innings among today's available pitchers. Their rest pattern is not compared against position players, and it is fine if they get less rest overall. A pitcher is anyone present who is rated to pitch (anything other than Never at P), including a player who also plays a position. For a two-way player like that, her equal share of pitching innings is the only workload limit: in rounds she is not pitching she is free to field her other position or hit, and she is not part of the rest-evenness rule below. (Clarified during ELL-226.)
 3. Rest is spread as evenly as possible across everyone else. No hard cap, just minimize the spread.
-4. Default batting slots, applied last, only once everything else has settled.
+4. Default batting slots, applied last, only once everything else has settled. A player with no default slot is never pushed down the order because of it: missing data is not a penalty. Players without a slot fill the open spots in the order, mixed in with everyone else, not lined up behind all the players who have one. (Decided during ELL-245, so new players with no history are not deprioritized.)
 
 ### The mid-round split, last resort only
 
