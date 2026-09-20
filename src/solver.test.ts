@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Practice, Round } from './solver'
 import { solve } from './solver'
-import { TEST_ROSTER } from './testRoster'
+import { LARGE_TEST_ROSTER, TEST_ROSTER } from './testRoster'
 import type { Goal, Position, PositionRating, Session } from './types'
 
 const ALL_IDS = TEST_ROSTER.map((player) => player.id)
@@ -47,6 +47,23 @@ function solveWith(
   overrides: Partial<Session> = {},
 ): Practice {
   return solve({ roster: TEST_ROSTER, session: makeSession(overrides), goals })
+}
+
+// The 20-player roster, for the scenarios that need enough bodies for two
+// teams. Each player is listed under the group she is rated best at, which is
+// the group the solver deals her out with.
+const LARGE_IDS = LARGE_TEST_ROSTER.map((player) => player.id)
+const LARGE_PITCHERS = ['harper', 'quinn', 'reese', 'ellis']
+const LARGE_CATCHERS = ['delaney', 'rowan', 'casey']
+const LARGE_INFIELDERS = ['maya', 'emerson', 'mia', 'sydney', 'jordan', 'blake', 'dakota']
+const LARGE_OUTFIELDERS = ['kennedy', 'avery', 'brooklyn', 'peyton', 'riley', 'finley']
+
+function solveLargeRoster(presentPlayerIds: string[]): Practice {
+  return solve({
+    roster: LARGE_TEST_ROSTER,
+    session: makeSession({ presentPlayerIds }),
+    goals: [],
+  })
 }
 
 function fielderIds(round: Round): string[] {
@@ -257,6 +274,74 @@ describe('mode selection', () => {
     const practice = solveWith([], { presentPlayerIds: TWELVE_IDS })
     expect(practice.mode).toBe('singleField')
     expect(practice.teams).toHaveLength(0)
+  })
+
+  it('builds three small teams when thirteen players are present', () => {
+    // One more than the single-field cutoff. Ellie runs three small teams
+    // that combine on defense at 13 or 14, not single-field.
+    const thirteen = ALL_IDS.filter((id) => !['reese', 'peyton'].includes(id))
+    const practice = solveWith([], { presentPlayerIds: thirteen })
+    expect(practice.mode).toBe('threeTeams')
+    expect(practice.teams).toHaveLength(3)
+  })
+
+  it('builds two teams when twenty are present and each side can field a defense alone', () => {
+    const practice = solveLargeRoster(LARGE_IDS)
+    expect(practice.mode).toBe('twoTeams')
+    expect(practice.teams).toHaveLength(2)
+
+    // Teams are disjoint and cover everyone.
+    const assigned = practice.teams.flatMap((team) => team.playerIds)
+    expect(assigned).toHaveLength(20)
+    expect(new Set(assigned).size).toBe(20)
+
+    // Each side has its own pitcher and its own catcher.
+    for (const team of practice.teams) {
+      const pitchers = team.playerIds.filter((id) => LARGE_PITCHERS.includes(id))
+      const catchers = team.playerIds.filter((id) => LARGE_CATCHERS.includes(id))
+      expect(pitchers.length, 'a team has no pitcher').toBeGreaterThanOrEqual(1)
+      expect(catchers.length, 'a team has no catcher').toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('falls back to three teams when there are enough players for two but only one can catch', () => {
+    // Seventeen present is plenty of bodies for two teams of eight, but with
+    // Rowan, Casey, and Riley out, Delaney is the only player who can catch
+    // at any level. Two sides cannot each have a catcher, so it is three teams.
+    const oneCatcher = LARGE_IDS.filter(
+      (id) => !['rowan', 'casey', 'riley'].includes(id),
+    )
+    const practice = solveLargeRoster(oneCatcher)
+    expect(practice.mode).toBe('threeTeams')
+    expect(practice.teams).toHaveLength(3)
+  })
+})
+
+describe('teams are split by position', () => {
+  it('deals each position group out evenly and keeps team sizes within one', () => {
+    const practice = solveLargeRoster(LARGE_IDS)
+
+    const sizes = practice.teams.map((team) => team.playerIds.length)
+    expect(
+      Math.max(...sizes) - Math.min(...sizes),
+      `team sizes were ${sizes.join(', ')}`,
+    ).toBeLessThanOrEqual(1)
+
+    const groups = {
+      pitchers: LARGE_PITCHERS,
+      catchers: LARGE_CATCHERS,
+      infielders: LARGE_INFIELDERS,
+      outfielders: LARGE_OUTFIELDERS,
+    }
+    for (const [groupName, groupIds] of Object.entries(groups)) {
+      const perTeam = practice.teams.map(
+        (team) => team.playerIds.filter((id) => groupIds.includes(id)).length,
+      )
+      expect(
+        Math.max(...perTeam) - Math.min(...perTeam),
+        `${groupName} were split ${perTeam.join(' / ')}`,
+      ).toBeLessThanOrEqual(1)
+    }
   })
 })
 
