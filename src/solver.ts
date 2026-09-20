@@ -2,6 +2,7 @@
 // that ties the steps together. It is being built one issue at a time
 // (ELL-227 through ELL-233). So far it picks the mode and the teams; rounds
 // are not built yet, so most behavior tests still fail on purpose.
+import { buildBattingOrder } from './battingOrder'
 import { dealIntoTeams, pickModeAndTeams } from './modeAndTeams'
 import { buildRounds, findUncoverablePositions } from './rounds'
 import type { Goal, Player, Position, Session } from './types'
@@ -84,25 +85,6 @@ const MIN_PLAYERS_FOR_A_SCRIMMAGE = 11
 // left over hits.
 const FIELDERS_IN_SINGLE_FIELD_MODE = 9
 
-// A side's batting order: the players who bat, in the order they were dealt,
-// except that anyone with a maximize-at-bats goal moves to the top so she
-// comes around more often (highest-priority goal first). Default batting
-// slots arrive in ELL-231.
-function battingOrderOf(players: Player[], goals: Goal[]): string[] {
-  const hitterIds = players.filter((player) => player.hits).map((player) => player.id)
-
-  const movedUp: string[] = []
-  for (const goal of goals) {
-    const isOnThisSide = hitterIds.includes(goal.playerId)
-    if (goal.verb === 'MaximizeAtBats' && isOnThisSide && !movedUp.includes(goal.playerId)) {
-      movedUp.push(goal.playerId)
-    }
-  }
-
-  const everyoneElse = hitterIds.filter((id) => !movedUp.includes(id))
-  return [...movedUp, ...everyoneElse]
-}
-
 // Single-field mode has no teams, but it does have fixed hitting groups that
 // take turns, built the same way teams are: dealt out by position. Players
 // who do not hit are not in a group, so they are always free for the defense.
@@ -123,7 +105,7 @@ export function solve(input: SolverInput): Practice {
 
   const teams: Team[] = teamsOfPlayers.map((teamPlayers) => ({
     playerIds: teamPlayers.map((player) => player.id),
-    battingOrder: battingOrderOf(teamPlayers, input.goals),
+    battingOrder: buildBattingOrder(teamPlayers, input.goals, input.session.date),
   }))
 
   // Step two: reasons to stop before building anything.
@@ -143,7 +125,9 @@ export function solve(input: SolverInput): Practice {
   // or in single-field mode the fixed hitting groups.
   const hittingSides =
     mode === 'singleField' ? buildHittingGroups(presentPlayers) : teamsOfPlayers
-  const battingOrders = hittingSides.map((side) => battingOrderOf(side, input.goals))
+  const battingOrders = hittingSides.map((side) =>
+    buildBattingOrder(side, input.goals, input.session.date),
+  )
 
   const built = buildRounds(
     presentPlayers,

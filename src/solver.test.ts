@@ -675,6 +675,25 @@ describe('default batting slots shape the order, and a missing one is no penalty
     expect(order[order.length - 1], 'she is not hitting last').toBe('avery')
   })
 
+  it('keeps slotted players in slot order even when several want the last spot', () => {
+    // Found on the real roster (ELL-231): two 9-hole hitters on a side with
+    // fewer than nine hitters. One took last, and the other jumped ahead of a
+    // 4-hole hitter to find an open spot. Slotted players must stay in slot
+    // order relative to each other.
+    const slots: Record<string, number> = { quinn: 9, rowan: 9, peyton: 4 }
+    const roster = TEST_ROSTER.map((player) =>
+      slots[player.id] ? { ...player, defaultBattingSlot: slots[player.id] } : player,
+    )
+    const practice = solve({ roster, session: makeSession(), goals: [] })
+    const team = practice.teams.find((t) => t.playerIds.includes('peyton'))
+    expect(team).toBeDefined()
+
+    // That side is Kennedy 1, Mia 2, Peyton 4, and the two 9s.
+    const order = team!.battingOrder
+    expect(order.slice(0, 3)).toEqual(['kennedy', 'mia', 'peyton'])
+    expect(order.slice(3).sort()).toEqual(['quinn', 'rowan'])
+  })
+
   it('settles a shared slot by the date: stable all day, different across days', () => {
     // Maya and Sydney are on the same team. Give them both slot 3.
     const roster = TEST_ROSTER.map((player) =>
