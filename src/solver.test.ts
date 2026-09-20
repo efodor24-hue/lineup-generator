@@ -138,12 +138,18 @@ describe('goals are honored in priority order', () => {
     ]
     const practice = solveWith(goals, { presentPlayerIds: TWELVE_IDS })
 
+    // The winning goal has to actually happen. Without this check, a solver
+    // that benched Mia all practice would pass while ignoring the top goal.
+    let miaPlayedShortstop = false
     for (const round of practice.rounds) {
       const mia = round.field.find((a) => a.playerId === 'mia')
       if (mia) {
         expect(mia.position, 'Mia is fielding somewhere other than SS').toBe('SS')
+        miaPlayedShortstop = true
       }
     }
+    expect(miaPlayedShortstop, 'Mia never played shortstop at all').toBe(true)
+
     const unmetPlayerIds = practice.unmetGoals.map((u) => u.goal.playerId)
     expect(unmetPlayerIds, "Sydney's losing goal was not reported").toContain('sydney')
   })
@@ -204,8 +210,8 @@ describe('rest spreads evenly', () => {
   it('keeps the gap between the most-rested and least-rested position player as small as possible', () => {
     // With 15 present in three-team mode, two teams (10 players) cover 9
     // field spots each round, so exactly one player rests per round. Spread
-    // evenly over 7 rounds, no position player should rest twice while
-    // another never rests more than a round apart from her.
+    // evenly over 7 rounds, the most-rested position player should have sat
+    // at most one round more than the least-rested one.
     const practice = solveWith()
 
     const positionPlayers = ALL_IDS.filter(
