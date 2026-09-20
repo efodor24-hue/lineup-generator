@@ -179,8 +179,9 @@ function bestCandidate(
   return best
 }
 
-// What the goals have settled for one round before the rest of the field is
-// filled in: who is locked into a position, and who is sitting this one out.
+// What has been settled for one round before the rest of the field is filled
+// in: who is locked into a position, and who is sitting this one out. Goals
+// decide first, then even pitching, then even rest.
 interface GoalDecisions {
   placements: { player: Player; position: Position }[]
   sitting: Player[]
@@ -301,6 +302,26 @@ function fillField(
   return { field, unfilledPositions }
 }
 
+// Anyone rated to pitch counts as a pitcher, including a player who also
+// plays a position. Pitchers are outside the rest-evenness rule (soft
+// objective 2 in the planning doc).
+function isPitcher(player: Player): boolean {
+  return player.ratings.P !== 'Never'
+}
+
+// How many assignments in this field carry an asterisk.
+function countFlags(result: FieldResult): number {
+  return result.field.filter((assignment) => assignment.flag !== undefined).length
+}
+
+// How many fielders had to come from the hitting side, borrowed or split.
+// These are the compromises the solver least wants to cause.
+function countHelpFromHittingSide(result: FieldResult): number {
+  return result.field.filter(
+    (assignment) => assignment.flag === 'borrowed' || assignment.flag === 'midRoundSplit',
+  ).length
+}
+
 // A goal is only kept for a round if the field still works with it: nothing
 // required is left empty. "A goal never breaks the field" in the planning
 // doc. A goal is allowed to cause a flagged compromise elsewhere, even a
@@ -403,6 +424,8 @@ export function buildRounds(
 
   const rounds: Round[] = []
   const roundsFielded = new Map<string, number>()
+  const inningsPitched = new Map<string, number>()
+  const roundsRested = new Map<string, number>()
   const unmetLog: UnmetLog = new Map()
 
   // Where each side's batting order picks up next time it hits.
@@ -486,6 +509,75 @@ export function buildRounds(
       }
     }
 
+    // Soft objective 2: even pitching. Unless a goal already chose the
+    // pitcher, the ball goes to the available pitcher with the fewest innings
+    // so far, whatever her rating. Her turn is not skipped to keep the field
+    // tidy (a borrowed shortstop is fine). It is skipped if it would leave a
+    // hole, or leave the field a player short: nine in the field beats even
+    // pitching. (Both decided with Ellie, ELL-232.)
+    const pitcherChosenByGoal = decisions.placements.some(
+      (placement) => placement.position === 'P',
+    )
+    if (!pitcherChosenByGoal) {
+      const availablePitchers = defenders.filter(
+        (player) =>
+          canPlay(player, 'P', goals) &&
+          !decisions.sitting.includes(player) &&
+          !decisions.placements.some((placement) => placement.player === player),
+      )
+      const fewestInningsFirst = [...availablePitchers].sort(
+        (a, b) => (inningsPitched.get(a.id) ?? 0) - (inningsPitched.get(b.id) ?? 0),
+      )
+      for (const pitcher of fewestInningsFirst) {
+        const trial: GoalDecisions = {
+          placements: [...decisions.placements, { player: pitcher, position: 'P' }],
+          sitting: decisions.sitting,
+        }
+        const trialResult = fillField(defenders, hittingSide, trial, roundsFielded, goals)
+        const justAsFull = trialResult.field.length >= current.field.length
+        if (isNoWorseThan(trialResult, current) && justAsFull) {
+          decisions = trial
+          current = trialResult
+          break
+        }
+      }
+    }
+
+    // Soft objective 3: even rest among position players. If the side has
+    // more players than the field needs, the ones who have rested least so
+    // far are the ones who sit. A sit is only kept if the field stays just as
+    // full and picks up no new asterisks; otherwise the next player due sits.
+    //
+    // Pitchers who are not pitching this round are asked to sit before any
+    // position player. Their rest is not part of the evenness rule, so they
+    // are the natural ones to give way when a two-way player would otherwise
+    // take a field spot from someone who has rested more than her share.
+    const undecided = defenders.filter(
+      (player) =>
+        !decisions.sitting.includes(player) &&
+        !decisions.placements.some((placement) => placement.player === player),
+    )
+    const pitchersNotPitching = undecided.filter((player) => isPitcher(player))
+    const positionPlayersLeastRestedFirst = undecided
+      .filter((player) => !isPitcher(player))
+      .sort((a, b) => (roundsRested.get(a.id) ?? 0) - (roundsRested.get(b.id) ?? 0))
+    const dueToSitFirst = [...pitchersNotPitching, ...positionPlayersLeastRestedFirst]
+    for (const player of dueToSitFirst) {
+      const trial: GoalDecisions = {
+        placements: decisions.placements,
+        sitting: [...decisions.sitting, player],
+      }
+      const trialResult = fillField(defenders, hittingSide, trial, roundsFielded, goals)
+      const justAsFull = trialResult.field.length >= current.field.length
+      const noNewAsterisks =
+        countFlags(trialResult) <= countFlags(current) &&
+        countHelpFromHittingSide(trialResult) <= countHelpFromHittingSide(current)
+      if (isNoWorseThan(trialResult, current) && justAsFull && noNewAsterisks) {
+        decisions = trial
+        current = trialResult
+      }
+    }
+
     if (current.unfilledPositions.length > 0) {
       const names = current.unfilledPositions.map((position) => POSITION_NAMES[position])
       return {
@@ -499,8 +591,20 @@ export function buildRounds(
       }
     }
 
+    // Keep the running counts the next round's choices depend on.
     for (const assignment of current.field) {
       roundsFielded.set(assignment.playerId, (roundsFielded.get(assignment.playerId) ?? 0) + 1)
+      if (assignment.position === 'P') {
+        inningsPitched.set(assignment.playerId, (inningsPitched.get(assignment.playerId) ?? 0) + 1)
+      }
+    }
+    for (const player of presentPlayers) {
+      // Resting means the dugout: neither fielding nor batting this round.
+      const isFielding = current.field.some((assignment) => assignment.playerId === player.id)
+      const isBatting = batters.includes(player.id)
+      if (!isFielding && !isBatting) {
+        roundsRested.set(player.id, (roundsRested.get(player.id) ?? 0) + 1)
+      }
     }
     rounds.push({ field: current.field, batters })
   }
