@@ -494,6 +494,40 @@ describe('pitchers get equal work', () => {
   })
 })
 
+describe('pitchers get equal work in two-team mode too', () => {
+  it('shares the innings among all four pitchers when twenty are present', () => {
+    // Two pitchers land on each team. A pitcher can only pitch when her own
+    // team is in the field, so this checks the ball is passed around within
+    // each team rather than going to the same arm every time.
+    const practice = solveLargeRoster(LARGE_IDS)
+    expect(practice.rounds).toHaveLength(7)
+
+    const inningsPitched = new Map<string, number>()
+    for (const round of practice.rounds) {
+      const pitcher = round.field.find((a) => a.position === 'P')
+      expect(pitcher, 'a round has no pitcher').toBeDefined()
+      inningsPitched.set(pitcher!.playerId, (inningsPitched.get(pitcher!.playerId) ?? 0) + 1)
+    }
+    const counts = LARGE_PITCHERS.map((id) => inningsPitched.get(id) ?? 0)
+    const spread = Math.max(...counts) - Math.min(...counts)
+    expect(spread, `innings pitched were ${counts.join(', ')}`).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('a backup does not sit more than a starter', () => {
+  it('spreads rest evenly across position players in two-team mode, whatever their ratings', () => {
+    // With ten on a team, someone sits every round that team fields. Finley
+    // and Dakota are rated Backup everywhere; always picking the best-rated
+    // player would bench them every time. Rest is spread evenly instead.
+    const practice = solveLargeRoster(LARGE_IDS)
+    const positionPlayers = [...LARGE_CATCHERS, ...LARGE_INFIELDERS, ...LARGE_OUTFIELDERS]
+
+    const rests = positionPlayers.map((id) => restCount(practice, id))
+    const spread = Math.max(...rests) - Math.min(...rests)
+    expect(spread, `rest counts were ${rests.join(', ')}`).toBeLessThanOrEqual(1)
+  })
+})
+
 describe('rest spreads evenly', () => {
   it('keeps the gap between the most-rested and least-rested position player as small as possible', () => {
     // With 15 present in three-team mode, two teams (10 players) cover 9
