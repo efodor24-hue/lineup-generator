@@ -147,6 +147,8 @@ The solver may only consider it in two situations, and never by default:
 1. A maximize-at-bats goal is active on that player.
 2. She is due to hit, and nobody else available for the defense can cover a required position she plays — for example the only catcher at practice, in a round her team is up. Hard rules 1 and 3 collide here, and this is how the collision is settled: she does both. If anyone rated Emergency only or better can cover the position, that player fills in instead (flagged as usual) and there is no split. (Decided during ELL-228.)
 
+**Borrowing comes before splitting.** (Decided during ELL-229.) When nobody on the defense can cover a required position, the solver first looks for someone on the hitting side who is not batting this round. She is free, so she simply fields, but she is fielding for the other side, and the coach should know: the assignment is flagged with an asterisk and a footnote saying she was borrowed and why. Only if nobody free can cover it does the solver fall back to the split.
+
 When a split is used the result is flagged. The lineup shows her fielding and hitting in the same round, with an asterisk and a footnote. The tool does not name who covers her spot during her at-bat; the coach sorts that out on the field.
 
 ## Goals
@@ -278,6 +280,9 @@ The only exception is the deliberate mid-round split, which must carry a flag. I
 > Then she appears in both the field at catcher and the batting group for that round,
 > And that assignment is flagged as a mid-round split with a footnote,
 > And nobody is in two places without that flag.
+
+> Given the same practice, in a round her team is hitting but she is not one of the batters,
+> Then she catches for the defense, and that assignment is flagged as borrowed with a footnote.
 
 ### No blanks
 

@@ -14,7 +14,10 @@ export type Mode = 'twoTeams' | 'threeTeams' | 'singleField'
 //   emergencyOnly  the position was covered by an EmergencyOnly-rated player
 //   overrodeNever  an explicit goal placed a player somewhere rated Never
 //   midRoundSplit  the last-resort mid-round position split was used
-export type AssignmentFlag = 'emergencyOnly' | 'overrodeNever' | 'midRoundSplit'
+//   borrowed       she fields for the other side in a round her own side is
+//                  hitting but she is not up, because nobody on the defense
+//                  can play the position
+export type AssignmentFlag = 'emergencyOnly' | 'overrodeNever' | 'midRoundSplit' | 'borrowed'
 
 export interface FieldAssignment {
   playerId: string

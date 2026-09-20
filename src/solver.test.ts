@@ -185,6 +185,38 @@ describe('nobody is in two places', () => {
     expect(practice.footnotes.length, 'no footnote explains the split').toBeGreaterThan(0)
   })
 
+  it('flags a player borrowed from the hitting team in a round she is not batting', () => {
+    // Same practice as above, but only two batters per round, so in some of
+    // her team's hitting rounds Delaney is not up. She is free to catch for
+    // the defense then, which is not a split, but she is fielding for the
+    // other side and the coach should see that.
+    const onlyOneCatcher = ALL_IDS.filter((id) => !['rowan', 'riley'].includes(id))
+    const practice = solveWith([], {
+      presentPlayerIds: onlyOneCatcher,
+      roundStructure: { kind: 'fixedBatters', battersPerRound: 2 },
+    })
+    const herTeam = practice.teams.find((team) => team.playerIds.includes('delaney'))
+    expect(herTeam).toBeDefined()
+
+    let borrowedRounds = 0
+    for (const round of practice.rounds) {
+      const herTeamIsHitting = round.batters.every((batter) =>
+        herTeam!.playerIds.includes(batter),
+      )
+      const sheIsBatting = round.batters.includes('delaney')
+      const catching = round.field.find((a) => a.playerId === 'delaney')
+      if (herTeamIsHitting && !sheIsBatting && catching) {
+        expect(catching.flag, 'a borrowed fielder carries no flag').toBe('borrowed')
+        borrowedRounds += 1
+      }
+    }
+    expect(borrowedRounds, 'Delaney was never borrowed').toBeGreaterThan(0)
+    expect(
+      practice.footnotes.join(' ').toLowerCase(),
+      'no footnote explains the borrowing',
+    ).toContain('borrowed')
+  })
+
   it('keeps the two sides apart in two-team mode: one team fields while the other hits', () => {
     const practice = solveLargeRoster(LARGE_IDS)
     expect(practice.rounds).toHaveLength(7)

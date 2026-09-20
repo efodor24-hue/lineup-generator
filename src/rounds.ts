@@ -281,9 +281,10 @@ function fillField(
     )
 
     if (notBattingCandidates.length > 0) {
-      // On the hitting side but not up this round, so she is free to field.
+      // Borrowed: on the hitting side but not up this round, so she is free
+      // to field. Flagged, because she is fielding for the other side.
       const chosen = bestCandidate(notBattingCandidates, position, [], roundsFielded, goals)
-      field.push({ playerId: chosen.id, position, flag: ratingFlag(chosen, position) })
+      field.push({ playerId: chosen.id, position, flag: 'borrowed' })
       availableNotBatting = availableNotBatting.filter((player) => player !== chosen)
     } else if (battingCandidates.length > 0) {
       // The mid-round split: she fields and hits in the same round.
@@ -366,6 +367,11 @@ function describeFlags(rounds: Round[], presentPlayers: Player[]): string[] {
       footnotes.push(`* ${where}: she is rated Emergency only there.`)
     } else if (flag === 'overrodeNever') {
       footnotes.push(`* ${where}: she is rated Never there. A goal put her there.`)
+    } else if (flag === 'borrowed') {
+      footnotes.push(
+        `* ${where}: borrowed from the hitting side, because nobody on the defense can play there. ` +
+          `She is not batting in ${roundNumbers.length === 1 ? 'that round' : 'those rounds'}.`,
+      )
     } else {
       footnotes.push(
         `* ${where}: she also hits, because nobody else available can play there. ` +
